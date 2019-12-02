@@ -818,7 +818,10 @@ class ParseableInterfaceModuleLoaderImpl {
     // architecture-specific pieces #if'd out. However, it doesn't hurt to
     // include it, and it guards against mistakenly reusing cached modules
     // across architectures.
-    H = hash_combine(H, SubInvocation.getLangOptions().Target.getArchName());
+
+    auto normalizedTargetTriple =
+        getTargetSpecificModuleTriple(SubInvocation.getLangOptions().Target);
+    H = hash_combine(H, normalizedTargetTriple.str());
 
     // The SDK path is going to affect how this module is imported, so include
     // it.
