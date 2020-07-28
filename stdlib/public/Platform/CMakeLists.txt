@@ -102,7 +102,20 @@ foreach(sdk ${SWIFT_SDKS})
             "-DGLIBC_INCLUDE_PATH=${SWIFT_SDK_${sdk}_ARCH_${arch}_LIBC_INCLUDE_DIRECTORY}"
             "-DGLIBC_ARCH_INCLUDE_PATH=${SWIFT_SDK_${sdk}_ARCH_${arch}_LIBC_ARCHITECTURE_INCLUDE_DIRECTORY}")
 
-    list(APPEND glibc_modulemap_target_list ${glibc_modulemap_target})
+    if(SWIFT_BUILD_STATIC_STDLIB)
+      add_custom_command_target(
+        copy_glibc_modulemap_static
+        COMMAND
+          "${CMAKE_COMMAND}" "-E" "make_directory" ${module_dir_static}
+        COMMAND
+          "${CMAKE_COMMAND}" "-E" "copy" ${glibc_modulemap_out} ${glibc_modulemap_out_static}
+        OUTPUT ${glibc_modulemap_out_static}
+        DEPENDS
+          "${glibc_modulemap_target}"
+        COMMENT "Copying Glibc modulemap to static resources")
+
+      list(APPEND glibc_modulemap_target_list ${copy_glibc_modulemap_static})
+    endif()
 
     if(SWIFT_BUILD_STATIC_STDLIB)
       add_custom_command_target(
