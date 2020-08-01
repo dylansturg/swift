@@ -7665,8 +7665,6 @@ namespace {
             componentType = solution.simplifyType(cs.getType(kp, i));
             assert(!componentType->hasTypeVariable() &&
                    "Should not write type variable into key-path component");
-            assert(!componentType->hasHole() &&
-                   "Should not write type hole into key-path component");
             kp->getMutableComponents()[i].setComponentType(componentType);
           }
         }
