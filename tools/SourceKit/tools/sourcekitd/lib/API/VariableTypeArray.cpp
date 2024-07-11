@@ -28,12 +28,14 @@ class VariableTypeReader {
   /// this \c VariableTypeReader. Each type is null-terminated and \c
   /// EntryReader references the types using offsets into this string.
   const char *PrintedTypes;
-  // Four unsigned integers for:
+  // Five unsigned integers for:
   //  - Variable offset in the source buffer
   //  - Variable length in the source buffer
   //  - Offset of printed Variable type inside `PrintedTypes`
+  //  - Offset of printed Variable type USR inside `PrintedTypes`
   //  - Whether the variable has an explicit type annotation
-  CompactArrayReader<unsigned, unsigned, unsigned, unsigned> EntryReader;
+  CompactArrayReader<unsigned, unsigned, unsigned, unsigned, unsigned>
+      EntryReader;
 
   static uint64_t getHeaderValue(char *Buffer, unsigned Index) {
     uint64_t HeaderField;
@@ -55,7 +57,8 @@ public:
     VariableType Result;
     unsigned HasExplicitType;
     EntryReader.readEntries(Idx, Result.VarOffset, Result.VarLength,
-                            Result.TypeOffset, HasExplicitType);
+                            Result.TypeOffset, Result.USROffset,
+                            HasExplicitType);
     Result.HasExplicitType = static_cast<bool>(HasExplicitType);
     return Result;
   }
@@ -79,6 +82,7 @@ public:
     APPLY(KeyVariableOffset, Int, Result.VarOffset);
     APPLY(KeyVariableLength, Int, Result.VarLength);
     APPLY(KeyVariableType, String, Reader.readPrintedType(Result.TypeOffset));
+    APPLY(KeyTypeUsr, String, Reader.readPrintedType(Result.USROffset));
     APPLY(KeyVariableTypeExplicit, Bool, Result.HasExplicitType);
     return true;
   }
@@ -88,7 +92,7 @@ public:
 struct VariableTypeArrayBuilder::Implementation {
   /// A builder that builds values read by \c EntryReader in \c
   /// VariableTypeReader. See \c VariableTypeReader::EntryReader for more info.
-  CompactArrayBuilder<unsigned, unsigned, unsigned, unsigned> Builder;
+  CompactArrayBuilder<unsigned, unsigned, unsigned, unsigned, unsigned> Builder;
   /// A builder that builds the \c PrintedTypes string used by \c
   /// VariableTypeReader. See \c VariableTypeReader::PrintedTypes for more info.
   CompactArrayBuilder<StringRef> StrBuilder;
@@ -146,6 +150,7 @@ VariableTypeArrayBuilder::~VariableTypeArrayBuilder() { delete &Impl; }
 void VariableTypeArrayBuilder::add(const VariableType &VarType) {
   Impl.Builder.addEntry(VarType.VarOffset, VarType.VarLength,
                         VarType.TypeOffset /*Printed type is null-terminated*/,
+                        VarType.USROffset /*Printed USR is null-terminated*/,
                         VarType.HasExplicitType);
 }
 

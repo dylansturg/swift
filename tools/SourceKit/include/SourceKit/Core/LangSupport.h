@@ -131,6 +131,7 @@ struct ExpressionType {
   unsigned ExprOffset;
   unsigned ExprLength;
   unsigned TypeOffset;
+  unsigned USROffset;
   std::vector<unsigned> ProtocolOffsets;
 };
 
@@ -147,6 +148,9 @@ struct VariableType {
   /// The offset of the type's string representation inside
   /// `VariableTypesInFile.TypeBuffer`.
   unsigned TypeOffset;
+  /// The offset of the type's USR inside
+  /// `VariableTypesInFile.TypeBuffer`.
+  unsigned USROffset;
   /// Whether the variable declaration has an explicit type annotation.
   bool HasExplicitType;
 };

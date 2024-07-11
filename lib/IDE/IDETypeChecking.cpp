@@ -26,6 +26,7 @@
 #include "swift/AST/Requirement.h"
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/Types.h"
+#include "swift/AST/USRGeneration.h"
 #include "swift/Basic/Assertions.h"
 #include "swift/IDE/IDERequests.h"
 #include "swift/IDE/SourceEntityWalker.h"
@@ -743,21 +744,26 @@ public:
     if (!shouldReport(Offset, Length, E, Conformances))
       return true;
     // Print the type to a temporary buffer.
-    SmallString<64> Buffer;
+    SmallString<64> TypeBuffer;
+    SmallString<64> USRBuffer;
     {
-      llvm::raw_svector_ostream OS(Buffer);
+      llvm::raw_svector_ostream TypeStream(TypeBuffer);
+      llvm::raw_svector_ostream USRStream(USRBuffer);
       auto Ty = E->getType()->getRValueType();
       PrintOptions printOptions = PrintOptions();
       printOptions.FullyQualifiedTypes = FullyQualified;
       if (CanonicalType) {
-        Ty->getCanonicalType()->print(OS, printOptions);
+        Ty->getCanonicalType()->print(TypeStream, printOptions);
       } else {
-        Ty->reconstituteSugar(true)->print(OS, printOptions);
+        Ty->reconstituteSugar(true)->print(TypeStream, printOptions);
       }
+      ide::printTypeUSR(Ty, USRStream);
     }
-    auto Ty = getTypeOffsets(Buffer.str());
+    auto Ty = getTypeOffsets(TypeBuffer.str());
+    auto USR = getTypeOffsets(USRBuffer.str());
     // Add the type information to the result list.
-    Results.push_back({Offset, Length, Ty.first, Ty.second, {}});
+    Results.push_back(
+        {Offset, Length, Ty.first, Ty.second, USR.first, USR.second, {}});
 
     // Adding all protocol names to the result.
     for(auto Con: Conformances) {
@@ -860,9 +866,11 @@ public:
           SM.getLocOffsetInBuffer(DeclNameRange.getStart(), BufferId);
       unsigned VarLength = DeclNameRange.getByteLength();
       // Print the type to a temporary buffer
-      SmallString<64> Buffer;
+      SmallString<64> TypeBuffer;
+      SmallString<64> USRBuffer;
       {
-        llvm::raw_svector_ostream OS(Buffer);
+        llvm::raw_svector_ostream TypeStream(TypeBuffer);
+        llvm::raw_svector_ostream USRStream(USRBuffer);
         PrintOptions Options;
         Options.SynthesizeSugarOnTypes = true;
         Options.FullyQualifiedTypes = FullyQualified;
@@ -871,15 +879,18 @@ public:
         if (Ty->is<ErrorType>()) {
           return false;
         }
-        Ty->print(OS, Options);
+        Ty->print(TypeStream, Options);
+        ide::printTypeUSR(VD, USRStream);
       }
       // Transfer the type to `OS` if needed and get the offset of this string
       // in `OS`.
-      auto TyOffset = getTypeOffset(Buffer.str());
+      auto TyOffset = getTypeOffset(TypeBuffer.str());
+      auto USROffset = getTypeOffset(USRBuffer.str());
       bool HasExplicitType =
           VD->getTypeReprOrParentPatternTypeRepr() != nullptr;
       // Add the type information to the result list.
-      Results.emplace_back(VarOffset, VarLength, HasExplicitType, TyOffset);
+      Results.emplace_back(VarOffset, VarLength, HasExplicitType, TyOffset,
+                           USROffset);
     }
     return true;
   }
@@ -901,9 +912,10 @@ public:
 };
 
 VariableTypeInfo::VariableTypeInfo(uint32_t Offset, uint32_t Length,
-                                   bool HasExplicitType, uint32_t TypeOffset)
+                                   bool HasExplicitType, uint32_t TypeOffset,
+                                   uint32_t USROffset)
     : Offset(Offset), Length(Length), HasExplicitType(HasExplicitType),
-      TypeOffset(TypeOffset) {}
+      TypeOffset(TypeOffset), USROffset(USROffset) {}
 
 void swift::collectVariableType(
     SourceFile &SF, SourceRange Range, bool FullyQualified,

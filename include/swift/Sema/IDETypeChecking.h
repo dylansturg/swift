@@ -228,8 +228,14 @@ namespace swift {
     /// The start of the printed type in a separately given string buffer.
     uint32_t typeOffset;
 
-    /// The length of the printed type
+    /// The length of the printed type.
     uint32_t typeLength;
+
+    /// The start of the printed USR in a separately given string buffer.
+    uint32_t USROffset;
+
+    /// The length of the printed USR.
+    uint32_t USRLength;
 
     /// The offsets and lengths of all protocols the type conforms to
     std::vector<std::pair<uint32_t, uint32_t>> protocols;
@@ -260,8 +266,11 @@ namespace swift {
     /// The start of the printed type in a separate string buffer.
     uint32_t TypeOffset;
 
+    /// The start of the printed type USR  in a separate string buffer.
+    uint32_t USROffset;
+
     VariableTypeInfo(uint32_t Offset, uint32_t Length, bool HasExplicitType,
-                     uint32_t TypeOffset);
+                     uint32_t TypeOffset, uint32_t USROffset);
   };
 
   /// Collect type information for every variable declaration in \c SF

@@ -2876,11 +2876,14 @@ void SwiftLangSupport::collectExpressionTypes(
       std::vector<ExpressionTypeInfo> Scratch;
       llvm::SmallString<256> TypeBuffer;
       llvm::raw_svector_ostream OS(TypeBuffer);
+      llvm::SmallString<256> USRBuffer;
+      llvm::raw_svector_ostream USRs(TypeBuffer);
       ExpressionTypesInFile Result;
       for (auto Item :
            collectExpressionType(*SF, ExpectedProtocols, Scratch,
                                  FullyQualified, CanonicalType, OS)) {
-        Result.Results.push_back({Item.offset, Item.length, Item.typeOffset, {}});
+        Result.Results.push_back(
+            {Item.offset, Item.length, Item.typeOffset, Item.USROffset, {}});
         for (auto P: Item.protocols) {
           Result.Results.back().ProtocolOffsets.push_back(P.first);
         }
@@ -2971,7 +2974,8 @@ void SwiftLangSupport::collectVariableTypes(
       collectVariableType(*SF, Range, FullyQualified, Infos, OS);
 
       for (auto Info : Infos) {
-        Result.Results.push_back({Info.Offset, Info.Length, Info.TypeOffset, Info.HasExplicitType});
+        Result.Results.push_back({Info.Offset, Info.Length, Info.TypeOffset,
+                                  Info.USROffset, Info.HasExplicitType});
       }
       Result.TypeBuffer = OS.str();
       Receiver(RequestResult<VariableTypesInFile>::fromResult(Result));

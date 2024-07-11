@@ -25,13 +25,15 @@ using namespace sourcekitd;
 namespace {
 class ExpressionTypeReader {
   const char *printedType;
-  // Five unsigned integers for:
+  // Six unsigned integers for:
   //  - Expression offset in the source buffer
   //  - Expression length in the source buffer
   //  - Offset of printed expression type inside printedType
+  //  - Offset of printed expression type's USR inside printedType
   //  - Offset of the first conforming protocol in the protocol buffer
   //  - Number of conforming protocols
-  CompactArrayReader<unsigned, unsigned, unsigned, unsigned, unsigned> entryReader;
+  CompactArrayReader<unsigned, unsigned, unsigned, unsigned, unsigned, unsigned>
+      entryReader;
 
   // Offsets inside printedType where a protocol name starts.
   CompactArrayReader<unsigned> protoReader;
@@ -57,7 +59,8 @@ public:
     ExpressionType result;
     unsigned protoStart, protoCount;
     entryReader.readEntries(idx, result.ExprOffset, result.ExprLength,
-                            result.TypeOffset, protoStart, protoCount);
+                            result.TypeOffset, result.USROffset, protoStart,
+                            protoCount);
     for (unsigned i = protoStart, n = protoStart + protoCount; i < n; i ++) {
       result.ProtocolOffsets.emplace_back();
       protoReader.readEntries(i, result.ProtocolOffsets.back());
@@ -94,6 +97,7 @@ public:
     APPLY(KeyExpressionOffset, Int, result.ExprOffset);
     APPLY(KeyExpressionLength, Int, result.ExprLength);
     APPLY(KeyExpressionType, String, reader.readPrintedType(result.TypeOffset));
+    APPLY(KeyTypeUsr, String, reader.readPrintedType(result.USROffset));
     APPLY_ARRAY(ProtocolName, KeyExpectedTypes);
     return true;
   }
@@ -154,7 +158,9 @@ VariantFunctions ProtocolListFuncs::Funcs = {
 struct ExpressionTypeArrayBuilder::Implementation {
   StringRef printedType;
   SmallVector<char, 256> buffer;
-  CompactArrayBuilder<unsigned, unsigned, unsigned, unsigned, unsigned> builder;
+  CompactArrayBuilder<unsigned, unsigned, unsigned, unsigned, unsigned,
+                      unsigned>
+      builder;
   CompactArrayBuilder<StringRef> strBuilder;
   CompactArrayBuilder<unsigned> protoBuilder;
 
@@ -218,10 +224,12 @@ void ExpressionTypeArrayBuilder::add(const ExpressionType &expType) {
     Impl.protoBuilder.addEntry(off);
   }
   auto protoCount = Impl.protoBuilder.size() - protoStart;
-  Impl.builder.addEntry(expType.ExprOffset, expType.ExprLength,
-                        expType.TypeOffset/*Printed type is null ended*/,
-                        protoStart/*Index of first protocol in the protocol buffer*/,
-                        protoCount/*Number of conforming protocols*/);
+  Impl.builder.addEntry(
+      expType.ExprOffset, expType.ExprLength,
+      expType.TypeOffset /*Printed type is null ended*/,
+      expType.USROffset /*Printed USR is null ended*/,
+      protoStart /*Index of first protocol in the protocol buffer*/,
+      protoCount /*Number of conforming protocols*/);
 }
 
 std::unique_ptr<llvm::MemoryBuffer>
