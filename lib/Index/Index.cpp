@@ -851,8 +851,10 @@ private:
       return true;
 
     // Dig back to the original captured variable
-    if (auto *VD = dyn_cast<VarDecl>(D)) {
-      D = firstDecl(D);
+    if (!IdxConsumer.indexLocals()) {
+      if (auto *VD = dyn_cast<VarDecl>(D)) {
+        D = firstDecl(D);
+      }
     }
 
     IndexSymbol Info;
@@ -1571,22 +1573,24 @@ bool IndexSwiftASTWalker::reportExtension(ExtensionDecl *D) {
 }
 
 bool IndexSwiftASTWalker::report(ValueDecl *D) {
-  auto *shadowedDecl = firstDecl(D);
-  if (D != shadowedDecl) {
-    // Report a reference to the shadowed decl
-    SourceLoc loc = D->getNameLoc();
+  if (!IdxConsumer.indexLocals()) {
+      auto *shadowedDecl = firstDecl(D);
+      if (D != shadowedDecl) {
+          // Report a reference to the shadowed decl
+          SourceLoc loc = D->getNameLoc();
 
-    IndexSymbol info;
-    if (!reportRef(shadowedDecl, loc, info, AccessKind::Read))
-      return false;
+          IndexSymbol info;
+          if (!reportRef(shadowedDecl, loc, info, AccessKind::Read))
+              return false;
 
-    // Suppress the reference if there is any (it is implicit and hence
-    // already skipped in the shorthand if let case, but explicit in the
-    // captured case).
-    suppressRefAtLoc(loc);
+          // Suppress the reference if there is any (it is implicit and hence
+          // already skipped in the shorthand if let case, but explicit in the
+          // captured case).
+          suppressRefAtLoc(loc);
 
-    // Skip the definition of a shadowed decl
-    return true;
+          // Skip the definition of a shadowed decl
+          return true;
+      }
   }
 
   if (startEntityDecl(D)) {
