@@ -18,6 +18,7 @@
 #include "swift/AST/Expr.h"
 #include "swift/AST/GenericParamList.h"
 #include "swift/AST/Module.h"
+#include "swift/AST/NameLookup.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/Pattern.h"
 #include "swift/AST/ProtocolConformance.h"
@@ -973,7 +974,7 @@ private:
                                  Decl *container);
 
   bool startEntity(Decl *D, IndexSymbol &Info, bool IsRef);
-  bool startEntityDecl(ValueDecl *D);
+  bool startEntityDecl(ValueDecl *D, SourceLoc LocOverride={});
 
   bool reportRelatedRef(ValueDecl *D, SourceLoc Loc, bool isImplicit, SymbolRoleSet Relations, Decl *Related);
 
@@ -1023,7 +1024,7 @@ private:
                        IndexSymbol &Info);
   bool initIndexSymbol(ExtensionDecl *D, ValueDecl *ExtendedD, SourceLoc Loc,
                        IndexSymbol &Info);
-  bool initFuncDeclIndexSymbol(FuncDecl *D, IndexSymbol &Info);
+  bool initFuncDeclIndexSymbol(FuncDecl *D, IndexSymbol &Info, SourceLoc Loc);
   bool initFuncRefIndexSymbol(ValueDecl *D, SourceLoc Loc, IndexSymbol &Info);
   bool initVarRefIndexSymbols(Expr *CurrentE, ValueDecl *D, SourceLoc Loc,
                               IndexSymbol &Info,
@@ -1347,11 +1348,11 @@ bool IndexSwiftASTWalker::startEntity(Decl *D, IndexSymbol &Info, bool IsRef) {
   llvm_unreachable("Unhandled IndexDataConsumer in switch.");
 }
 
-bool IndexSwiftASTWalker::startEntityDecl(ValueDecl *D) {
+bool IndexSwiftASTWalker::startEntityDecl(ValueDecl *D, SourceLoc LocOverride) {
   if (!shouldIndex(D, /*IsRef=*/false))
     return false;
 
-  SourceLoc Loc = D->getLoc(/*SerializedOK*/false);
+  SourceLoc Loc = LocOverride.isValid() ? LocOverride : D->getLoc(/*SerializedOK*/false);
   if (Loc.isInvalid() && !IsModuleFile)
     return false;
 
@@ -1362,7 +1363,7 @@ bool IndexSwiftASTWalker::startEntityDecl(ValueDecl *D) {
 
   IndexSymbol Info;
   if (auto FD = dyn_cast<FuncDecl>(D)) {
-    if (initFuncDeclIndexSymbol(FD, Info))
+    if (initFuncDeclIndexSymbol(FD, Info, Loc))
       return false;
   } else {
     if (initIndexSymbol(D, Loc, /*IsRef=*/false, Info))
@@ -1594,7 +1595,22 @@ bool IndexSwiftASTWalker::report(ValueDecl *D) {
     }
   }
 
-  if (startEntityDecl(D)) {
+  if (D->isSynthesized() && isa<DestructorDecl>(D)) {
+    return false;
+  }
+
+  SourceLoc locOverride = {};
+  if (D->isSynthesized() && D->getLoc().isInvalid() && !EntitiesStack.empty()) {
+    // Include a useful location for synthesized witnesses.
+    for (const IndexedWitness &witness : EntitiesStack.back().ExplicitWitnesses) {
+      if (witness.Member == D) {
+        locOverride = getParentDecl()->getLoc();
+        break;
+      }
+    }
+  }
+
+  if (startEntityDecl(D, locOverride)) {
     // Pass accessors.
     if (auto StoreD = dyn_cast<AbstractStorageDecl>(D)) {
       bool usedPseudoAccessors = false;
@@ -1857,8 +1873,8 @@ bool IndexSwiftASTWalker::initIndexSymbol(ExtensionDecl *ExtD, ValueDecl *Extend
 }
 
 bool IndexSwiftASTWalker::initFuncDeclIndexSymbol(FuncDecl *D,
-                                                  IndexSymbol &Info) {
-  if (initIndexSymbol(D, D->getLoc(/*SerializedOK*/false), /*IsRef=*/false, Info))
+                                                  IndexSymbol &Info, SourceLoc Loc) {
+  if (initIndexSymbol(D, Loc, /*IsRef=*/false, Info))
     return true;
 
   if (ide::isDeclOverridable(D)) {

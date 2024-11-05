@@ -958,6 +958,8 @@ bool SemaAnnotator::passCallArgNames(Expr *Fn, ArgumentList *ArgList) {
 bool SemaAnnotator::shouldIgnore(Decl *D) {
   if (!D->isImplicit())
     return false;
+  if (auto VD = dyn_cast<ValueDecl>(D); VD && VD->isSynthesized())
+    return false;
 
   // TODO: There should really be a separate field controlling whether
   //       constructors are visited or not

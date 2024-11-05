@@ -1165,6 +1165,8 @@ public:
       return true;
     if (isLocal(D))
       return true;
+    if (D->isImplicit())
+      return true;
 
     // Ignore things that don't come from this buffer.
     if (!SM.getRangeForBuffer(BufferID).contains(D->getSourceRange().Start))
