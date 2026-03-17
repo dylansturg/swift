@@ -1,5 +1,10 @@
 // RUN: %target-swift-emit-silgen -swift-version 6 %s | %FileCheck %s
 
+// https://github.com/swiftlang/swift/issues/87893
+// rdar://172703741
+// SIL verification failure when a static method with typed throws is passed
+// as a function reference to a generic parameter expecting untyped throws.
+
 struct E: Error {}
 struct S {
   static func src(_ x: Int) throws(E) -> Int { x }

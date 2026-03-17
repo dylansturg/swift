@@ -3311,6 +3311,13 @@ static bool canEmitSpecializedClosureFunction(CanAnyFunctionType closureType,
        closureType.getThrownError() != destType.getThrownError()))
     return false;
 
+  // If the closure has a different thrown error type than the destination,
+  // we cannot emit the closure directly because the SIL function type
+  // (derived from the closure's own type) will have a different error
+  // type than what the body expects (derived from the destination type).
+  if (closureType.getThrownError() != destType.getThrownError())
+    return false;
+
   return true;
 }
 
