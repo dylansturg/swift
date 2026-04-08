@@ -2540,7 +2540,6 @@ namespace {
 
       // Import each of the members.
       SmallVector<VarDecl *, 4> members;
-      SmallVector<FuncDecl *, 4> methods;
       SmallVector<ConstructorDecl *, 4> ctors;
 
       // The name of every member.
@@ -2632,10 +2631,8 @@ namespace {
           continue;
         }
 
-        if (auto MD = dyn_cast<FuncDecl>(member)) {
-          methods.push_back(MD);
+        if (isa<FuncDecl>(member))
           continue;
-        }
 
         if (isa<VarDecl>(member) && isa<clang::CXXMethodDecl>(nd)) {
           result->addMember(member);
