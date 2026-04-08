@@ -2554,9 +2554,11 @@ namespace {
           continue;
         }
 
+        bool isFriend = false;
         if (auto friendDecl = dyn_cast<clang::FriendDecl>(m)) {
-          if (friendDecl->getFriendDecl()) {
-            m = friendDecl->getFriendDecl();
+          if (auto *underlyingDecl = friendDecl->getFriendDecl()) {
+            m = underlyingDecl;
+            isFriend = true;
           }
         }
 
@@ -2600,6 +2602,12 @@ namespace {
           continue;
 
         Decl *member = Impl.importDecl(nd, getActiveSwiftVersion());
+
+        if (isFriend)
+          // We import friend decls because we (might) rely on side effects from
+          // doing so, but skip the rest of the normal import routine becaus we
+          // don't need to add friend decls as members.
+          continue;
 
         if (!member) {
           if (!isa<clang::TypeDecl>(nd) && !isa<clang::FunctionDecl>(nd) &&

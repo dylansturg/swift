@@ -1,12 +1,14 @@
 #pragma once
 
 struct A {
+  A();
   void memberInA(int x) const;
 };
 
 struct B {
-  // This should not get imported as a member of B, because friendship means
+  // These should not get imported as members of B, because friendship means
   // nothing in Swift
+  friend A::A();
   friend void A::memberInA(int) const;
 
   void memberInB() const;
