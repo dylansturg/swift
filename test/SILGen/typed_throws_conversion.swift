@@ -15,6 +15,19 @@ func sink<T: Equatable>(_ fn: (T) throws -> T, _ v: [T]) throws {
 }
 
 // CHECK-LABEL: sil {{.*}} @$s{{.*}}test
+// CHECK:         function_ref @$s{{.*}}test{{.*}}fu_
+// CHECK:         // function_ref thunk for
+// CHECK:         function_ref @$s{{.*}}_TR
+// CHECK:         partial_apply
 func test() throws {
   try sink(S.src, [1])
+}
+
+// Verify that an explicit closure literal with typed throws assigned to an
+// untyped-throws context is emitted directly without a thunk.
+// CHECK-LABEL: sil private {{.*}} @$s{{.*}}testExplicitClosure{{.*}}fU_ :
+// CHECK-SAME:    -> @error any Error
+func testExplicitClosure() {
+    var callback: (() throws -> Void)?
+    callback = { () throws(E) in }
 }
