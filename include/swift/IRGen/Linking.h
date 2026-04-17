@@ -1657,6 +1657,10 @@ public:
     assert(isDeclKind(getKind()));
     return reinterpret_cast<ValueDecl*>(Pointer);
   }
+
+  bool hasExtension() const {
+    return getKind() == Kind::ExtensionDescriptor;
+  }
   
   const ExtensionDecl *getExtension() const {
     assert(getKind() == Kind::ExtensionDescriptor);
