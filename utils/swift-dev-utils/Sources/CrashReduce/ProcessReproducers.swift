@@ -285,7 +285,7 @@ public actor ProcessReproducers {
       groupedRepros[sig, default: []].append(crasher)
     }
 
-    if !checkOnly {
+    if !checkOnly && !groupedRepros.isEmpty {
       log.info("found \(groupedRepros.count) new crasher(s), reducing...")
 
       // creduce already parallelizes so only do 3 in parallel.
