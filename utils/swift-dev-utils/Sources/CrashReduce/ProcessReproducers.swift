@@ -188,7 +188,7 @@ public actor ProcessReproducers {
     if let inputDir {
       inputPaths += try inputDir.getDirContents()
         .map { inputDir.appending($0) }
-        .filter { !$0.isDirectory && !$0.isSymlink }
+        .filter { !$0.isDirectory }
     }
 
     let count = inputPaths.count
