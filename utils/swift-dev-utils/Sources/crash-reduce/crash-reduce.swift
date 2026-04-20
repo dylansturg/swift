@@ -157,12 +157,13 @@ extension ReduceCommand {
         sdkPath: computeSDKPath()
       ),
       quickMode: quick,
-      deleteInputs: deleteInputs
-    ).process(
-       reprocess: reprocess, ignoreExisting: ignoreExisting,
-       fileIssues: fileIssues, frontendArgs: frontendArgs.map { .value($0) },
-       checkOnly: checkOnly
-    )
+      deleteInputs: deleteInputs,
+      reprocess: reprocess,
+      ignoreExisting: ignoreExisting,
+      fileIssues: fileIssues,
+      frontendArgs: frontendArgs.map { .value($0) },
+      checkOnly: checkOnly
+    ).process()
   }
 }
 
