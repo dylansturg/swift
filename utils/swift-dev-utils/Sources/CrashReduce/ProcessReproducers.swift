@@ -179,7 +179,7 @@ public actor ProcessReproducers {
         }
         for await _ in worklist.results {}
       }
-      for repro in reproFiles {
+      for repro in reproFiles where !repro.reproducer.primarySig.isUnknown {
         recordReproducer(repro)
       }
     }
