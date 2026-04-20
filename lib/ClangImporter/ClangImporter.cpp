@@ -5937,6 +5937,7 @@ synthesizeBaseClassMethodBody(AbstractFunctionDecl *afd, void *context) {
   return {body, /*isTypeChecked=*/true};
 }
 
+namespace {
 // How should the synthesized C++ method that returns the field of interest
 // from the base class should return the value - by value, or by reference.
 enum ReferenceReturnTypeBehaviorForBaseAccessorSynthesis {
@@ -5944,6 +5945,7 @@ enum ReferenceReturnTypeBehaviorForBaseAccessorSynthesis {
   ReturnByReference,
   ReturnByMutableReference
 };
+} // end anonymous namespace
 
 // Synthesize a C++ method that returns the field of interest from the base
 // class. This lets Clang take care of the cast from the derived class
@@ -5975,7 +5977,7 @@ static clang::CXXMethodDecl *synthesizeCxxBaseGetterAccessorMethod(
   auto valueReturnType = returnType;
   if (behavior !=
       ReferenceReturnTypeBehaviorForBaseAccessorSynthesis::ReturnByValue) {
-    returnType = clangCtx.getRValueReferenceType(
+    returnType = clangCtx.getLValueReferenceType(
         behavior == ReferenceReturnTypeBehaviorForBaseAccessorSynthesis::
                         ReturnByReference
             ? returnType.withConst()
@@ -6002,6 +6004,7 @@ static clang::CXXMethodDecl *synthesizeCxxBaseGetterAccessorMethod(
     newMethod->addAttr(clang::CFReturnsRetainedAttr::CreateImplicit(clangCtx));
   }
 
+  clang::Sema::SynthesizedFunctionScope scope(clangSema, newMethod);
   // Create a new Clang diagnostic pool to capture any diagnostics
   // emitted during the construction of the method.
   clang::sema::DelayedDiagnosticPool diagPool{
@@ -6036,12 +6039,8 @@ static clang::CXXMethodDecl *synthesizeCxxBaseGetterAccessorMethod(
         clang::DeclarationNameInfo(field->getDeclName(),
                                    clang::SourceLocation()),
         valueReturnType, clang::VK_LValue, clang::OK_Ordinary);
-    auto returnCast = clangSema.ImpCastExprToType(memberExpr, valueReturnType,
-                                                  clang::CK_LValueToRValue,
-                                                  clang::VK_PRValue);
-    if (!returnCast.isUsable())
-      return nullptr;
-    return returnCast.get();
+
+    return memberExpr;
   };
 
   llvm::SmallVector<clang::Stmt *, 2> body;
@@ -6073,9 +6072,11 @@ static clang::CXXMethodDecl *synthesizeCxxBaseGetterAccessorMethod(
   auto fieldExpr = createFieldAccess();
   if (!fieldExpr)
     return nullptr;
-  auto returnStmt = clang::ReturnStmt::Create(clangCtx, clang::SourceLocation(),
-                                              fieldExpr, nullptr);
-  body.push_back(returnStmt);
+  auto returnStmt =
+      clangSema.BuildReturnStmt(clang::SourceLocation(), fieldExpr);
+  if (!returnStmt.isUsable())
+    return nullptr;
+  body.push_back(returnStmt.get());
 
   // Check if there were any Clang errors during the construction
   // of the method body.
