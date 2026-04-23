@@ -28,6 +28,8 @@
 #include "swift/AST/Types.h"
 #include "swift/AST/USRGeneration.h"
 #include "swift/Basic/Assertions.h"
+#include "clang/AST/DeclObjC.h"
+#include "swift/AST/ClangModuleLoader.h"
 #include "swift/Basic/SourceManager.h"
 #include "swift/Basic/StringExtras.h"
 #include "swift/IDE/SourceEntityWalker.h"
@@ -910,7 +912,28 @@ private:
     if (Data.isImplicit)
       Info.roles |= (unsigned)SymbolRole::Implicit;
 
+    // When Clang's indexing encounters a "@compatibility_alias", it emits
+    // references to the underlying type. ClangImporter generates a typealias
+    // that is never emitted, so references to that typealias have no
+    // corresponding definition. Opting to match Clang's behavior and reach
+    // "through" the alias to the underlying type.
+    auto resolveCompatibilityAlias = [](auto &decl) {
+      if (!decl) return;
+      if (auto *TAD = dyn_cast<TypeAliasDecl>(decl)) {
+        if (auto *importer = decl->getASTContext().getClangModuleLoader()) {
+          if (ClangNode ClangN = importer->getEffectiveClangNode(TAD)) {
+            if (isa<clang::ObjCCompatibleAliasDecl>(ClangN.getAsDecl())) {
+              if (auto *nominal = TAD->getUnderlyingType()->getAnyNominal()) {
+                decl = nominal;
+              }
+            }
+          }
+        }
+      }
+    };
+
     if (CtorTyRef) {
+      resolveCompatibilityAlias(CtorTyRef);
       IndexSymbol CtorInfo(Info);
       if (Data.isImplicitCtorType)
         CtorInfo.roles |= (unsigned)SymbolRole::Implicit;
@@ -921,6 +944,8 @@ private:
     if (auto *GenParam = dyn_cast<GenericTypeParamDecl>(D)) {
       D = canonicalizeGenericTypeParamDeclForIndex(GenParam);
     }
+
+    resolveCompatibilityAlias(D);
 
     if (!reportRef(D, Loc, Info, Data.AccKind))
       return false;
